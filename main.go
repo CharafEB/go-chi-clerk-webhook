@@ -35,57 +35,58 @@ func nullableTimestamptz(sec *int64) any {
 }
 
 // createUser handles user.created — plain INSERT only.
-func (h *webhookHandler) createUser(ctx context.Context, u clerkUser) error {
-	tx, err := h.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	const insertUser = `
-INSERT INTO users (id, first_name, last_name, username, image_url, gender, birthday,
-    password_enabled, two_factor_enabled, primary_email_address_id, primary_phone_number_id,
-    created_at, updated_at, last_sign_in_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,to_timestamp($12),to_timestamp($13),$14)`
-	if _, err := tx.Exec(ctx, insertUser,
-		u.ID, u.FirstName, u.LastName, u.Username, u.ImageURL, u.Gender, u.Birthday,
-		u.PasswordEnabled, u.TwoFactorEnabled, u.PrimaryEmailAddressID, u.PrimaryPhoneNumberID,
-		u.CreatedAt, u.UpdatedAt, nullableTimestamptz(u.LastSignInAt),
-	); err != nil {
-		return fmt.Errorf("create user %s: %w", u.ID, err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	return nil
+func (h *webhookHandler) createUser(ctx context.Context, u clerkUser) error {  
+ tx, err := h.db.Begin(ctx)  
+ if err != nil {  
+  return err  
+ }  
+ defer tx.Rollback(ctx)  
+  
+   const insertUser = `  
+      INSERT INTO users (id, first_name, last_name, username, image_url, gender, birthday,  
+      password_enabled, two_factor_enabled, primary_email_address_id, primary_phone_number_id,  
+      created_at, updated_at, last_sign_in_at)  
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,to_timestamp($12 / 1000.0),to_timestamp($13 / 1000.0),$14)`  
+  
+   if _, err := tx.Exec(ctx, insertUser,  
+    u.ID, u.FirstName, u.LastName, u.Username, u.ImageURL, u.Gender, u.Birthday,  
+    u.PasswordEnabled, u.TwoFactorEnabled, u.PrimaryEmailAddressID, u.PrimaryPhoneNumberID,  
+    u.CreatedAt, u.UpdatedAt, nullableTimestamptz(u.LastSignInAt),  
+   ); err != nil {  
+  
+    return fmt.Errorf("create user %s: %w", u.ID, err)  
+  
+   }  
+   if err := tx.Commit(ctx); err != nil {  
+    return err  
+   }  
+   return nil  
 }
 
 // updateUser handles user.updated — plain UPDATE only.
-func (h *webhookHandler) updateUser(ctx context.Context, u clerkUser) error {
-	tx, err := h.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	const updateUser = `
-UPDATE users SET first_name=$2, last_name=$3, username=$4, image_url=$5, gender=$6, birthday=$7,
-    password_enabled=$8, two_factor_enabled=$9, primary_email_address_id=$10, primary_phone_number_id=$11,
-    created_at=to_timestamp($12), updated_at=to_timestamp($13), last_sign_in_at=$14
-WHERE id=$1`
-	if _, err := tx.Exec(ctx, updateUser,
-		u.ID, u.FirstName, u.LastName, u.Username, u.ImageURL, u.Gender, u.Birthday,
-		u.PasswordEnabled, u.TwoFactorEnabled, u.PrimaryEmailAddressID, u.PrimaryPhoneNumberID,
-		u.CreatedAt, u.UpdatedAt, nullableTimestamptz(u.LastSignInAt),
-	); err != nil {
-		return fmt.Errorf("update user %s: %w", u.ID, err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	return nil
+func (h *webhookHandler) updateUser(ctx context.Context, u clerkUser) error {  
+ tx, err := h.db.Begin(ctx)  
+ if err != nil {  
+  return err  
+ }  
+ defer tx.Rollback(ctx)  
+  
+   const updateUser = `  
+      UPDATE users SET first_name=$2, last_name=$3, username=$4, image_url=$5, gender=$6, birthday=$7,  
+      password_enabled=$8, two_factor_enabled=$9, primary_email_address_id=$10, primary_phone_number_id=$11,updated_at=to_timestamp($12 / 1000.0), last_sign_in_at=$13  
+      WHERE id=$1 AND updated_at < to_timestamp($13 / 1000.0)`  
+  
+   if _, err := tx.Exec(ctx, updateUser,  
+    u.ID, u.FirstName, u.LastName, u.Username, u.ImageURL, u.Gender, u.Birthday,  
+    u.PasswordEnabled, u.TwoFactorEnabled, u.PrimaryEmailAddressID, u.PrimaryPhoneNumberID,  
+    u.UpdatedAt, nullableTimestamptz(u.LastSignInAt),  
+   ); err != nil {  
+    return fmt.Errorf("update user %s: %w", u.ID, err)  
+   }  
+   if err := tx.Commit(ctx); err != nil {  
+    return err  
+   }  
+   return nil  
 }
 
 // deleteUser handles user.deleted.
